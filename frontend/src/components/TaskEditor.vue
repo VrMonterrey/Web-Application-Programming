@@ -154,18 +154,46 @@ export default {
         .catch((err) => this.$emit("dataAccessFailed", err.message));
     },
     modify() {
-      fetch("/task?_id=" + this.id, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.task),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) throw new Error(data.error);
-          this.$emit("dataChanged");
+  const originalProjectId = this.task.project_id;
+
+  fetch("/task?_id=" + this.id, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(this.task),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.error) throw new Error(data.error);
+
+      if (this.task.project_id !== originalProjectId) {
+        return fetch(`/members?task_id=${this.id}`, {
+          method: "GET",
         })
-        .catch((err) => this.$emit("dataAccessFailed", err.message));
-    },
+          .then((res) => res.json())
+          .then((membersData) => {
+            if (membersData.error) throw new Error(membersData.error);
+
+            const filteredMembers = membersData.filter(
+              (member) => member.projects.includes(this.task.project_id)
+            );
+
+            return fetch('/task?_id=' + this.id, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ persons: filteredMembers.map(member => member._id) }),
+            });
+          })
+          .then((res) => res.json())
+          .then((updateData) => {
+            if (updateData.error) throw new Error(updateData.error);
+            this.$emit("membersUpdated");
+          });
+      }
+
+      this.$emit("dataChanged");
+    })
+    .catch((err) => this.$emit("dataAccessFailed", err.message));
+},
     remove() {
       this.confirmation = true;
     },
@@ -225,48 +253,38 @@ export default {
       persons: [],
     };
   },
-  async mounted() {
-    try {
-      const projectsResponse = await fetch(
-        "/project" + "?search&limit=1000000",
-        {
-          method: "GET",
-        }
-      );
-      const projectsData = await projectsResponse.json();
+  mounted() {
+  fetch("/project?search&limit=1000000", {
+    method: "GET",
+  })
+  .then(response => response.json())
+  .then(projectsData => {
+    this.projects = projectsData;
 
-      this.projects = projectsData;
+    return fetch("/person?search&limit=1000000", {
+      method: "GET",
+    });
+  })
+  .then(response => response.json())
+  .then(personsData => {
+    this.persons = personsData;
 
-      const personsResponse = await fetch("/person" + "?search&limit=1000000", {
+    if (this.id) {
+      return fetch("/task?_id=" + this.id, {
         method: "GET",
-      });
-      const personsData = await personsResponse.json();
-      this.persons = personsData;
-      if (this.id) {
-        const taskResponse = await fetch("/task?_id=" + this.id, {
-          method: "GET",
-        });
-        const taskData = await taskResponse.json();
-
+      })
+      .then(response => response.json())
+      .then(taskData => {
         if (taskData.error) {
           throw new Error(taskData.error);
         }
         Object.assign(this.task, taskData);
 
-        const selectedProject = this.projects.find(
-          (project) => project._id === this.task.project_id
-        );
-
+        const selectedProject = this.projects.find(project => project._id === this.task.project_id);
         if (selectedProject) {
           this.filteredPersons = this.persons
-            .filter(
-              (person) =>
-                person.projects &&
-                person.projects.some(
-                  (project) => project._id === selectedProject._id
-                )
-            )
-            .map((person) => ({
+            .filter(person => person.projects && person.projects.some(project => project._id === selectedProject._id))
+            .map(person => ({
               value: person._id,
               title: person.firstName + " " + person.lastName,
             }));
@@ -277,10 +295,12 @@ export default {
           console.log("this.task.members: ", this.task.members);
           console.log("Filtered Persons:", this.filteredPersons);
         }
-      }
-    } catch (err) {
-      this.$emit("dataAccessFailed", err.message);
+      });
     }
+  })
+  .catch(err => {
+    this.$emit("dataAccessFailed", err.message);
+  });
   },
 };
 </script>

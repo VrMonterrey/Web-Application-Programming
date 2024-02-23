@@ -237,22 +237,23 @@ export default {
       filteredPersons: [],
     };
   },
-  async mounted() {
-    try {
-      const personsResponse = await fetch("/person" + "?search&limit=1000000", {
+  mounted() {
+  fetch("/person?search&limit=1000000", {
+    method: "GET",
+  })
+  .then(response => response.json())
+  .then(personsData => {
+    this.persons = personsData;
+
+    if (this.id) {
+      fetch("/project?_id=" + this.id, {
         method: "GET",
-      });
-      const personsData = await personsResponse.json();
-
-      this.persons = personsData;
-
-      if (this.id) {
-        const projectResponse = await fetch("/project?_id=" + this.id, {
-          method: "GET",
-        });
+      })
+      .then(projectResponse => {
         console.log("Project Editor mounted: ", projectResponse);
-        const projectData = await projectResponse.json();
-
+        return projectResponse.json();
+      })
+      .then(projectData => {
         if (projectData.error) {
           throw new Error(projectData.error);
         }
@@ -262,26 +263,32 @@ export default {
         }
         Object.assign(this.project, projectData);
         Object.assign(this.center, this.project.coords);
-        this.$refs.vmap.map.panTo(this.center);
+
+        if (this.$refs.vmap && this.$refs.vmap.map) {
+          this.$refs.vmap.map.panTo(this.center);
+        }
 
         this.filteredPersons = this.persons
-          .filter(
-            (person) =>
-              person.projects &&
-              person.projects.some(
-                (project) => project._id === this.project._id
-              )
+          .filter(person => 
+            person.projects &&
+            person.projects.some(project => project._id === this.project._id)
           )
-          .map((person) => ({
+          .map(person => ({
             value: person._id,
             title: person.firstName + " " + person.lastName,
           }));
-      }
-      console.log("Project Manager mounted:", this.project.manager);
-    } catch (err) {
-      this.$emit("dataAccessFailed", err.message);
+
+        console.log("Project Manager mounted:", this.project.manager);
+      })
+      .catch(err => {
+        this.$emit("dataAccessFailed", err.message);
+      });
     }
-  },
+  })
+  .catch(err => {
+    this.$emit("dataAccessFailed", err.message);
+  });
+},
 };
 </script>
 

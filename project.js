@@ -6,12 +6,12 @@ const schema = new mongoose.Schema({
     name: { type: String, required: true },
     shortcut: { type: String, required: true },
     color: { type: String, required: false },
-    manager: {type: String, required: false},
     startDate: { type: Date, required: true, transform: v => v.toISOString().slice(0, 10) },
     coords: {
         lat: { type: Number, required: false },
         lng: { type: Number, required: false }    
-    }
+    },
+    manager: {type: String, required: false},
 }, {
     versionKey: false,
     additionalProperties: false

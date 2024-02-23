@@ -20,7 +20,7 @@
     </v-card-subtitle>
 
     <v-card-text>
-      <v-table density="compact" hover>
+      <v-table density="compact">
         <thead>
           <tr>
             <th class="text-center">Project name</th>
@@ -47,7 +47,7 @@
               <td colspan="5">
                 <v-card flat>
                   <GanttChart :tasks="filteredTasks(project._id)" />
-                  <v-table dense>
+                  <v-table dense hover>
                     <thead>
                       <tr>
                         <th class="text-center">Name</th>
