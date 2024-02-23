@@ -31,6 +31,7 @@ module.exports = {
 
     get: (req, res) => {
         const _id = req.query._id
+        const managerId = req.query.managerId
         if(_id) {
             model.findOne({ _id })
             .then(data => {
@@ -43,7 +44,17 @@ module.exports = {
             .catch(err => {
                 res.status(408).json({ error: err.message })
             })
-        } else {
+        } else if (managerId) {
+            model.find({ manager: managerId })
+              .then((data) => {
+                
+                res.json(data);
+              })
+              .catch((err) => {
+                
+                res.status(500).json({ error: err.message });
+              });
+            } else {
             let aggregation = [
                 { $sort: { name: 1 }},
                 { $match: { $or: [ 

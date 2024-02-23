@@ -89,6 +89,7 @@ export default {
     .then(data => {
       if (data.error) throw new Error(data.error);
       this.removePersonFromTasks(personIdToRemove);
+      this.removeManager(personIdToRemove);
       this.$emit('dataChanged');
     })
     .catch(err => this.$emit('dataAccessFailed', err.message));
@@ -122,6 +123,31 @@ export default {
       console.log('All tasks updated:', results);
     })
     .catch(err => console.error('Failed to update tasks for person', err));
+},
+removeManager(managerId) {
+  fetch(`/project?managerId=${encodeURIComponent(managerId)}`)
+    .then(response => response.json())
+    .then(projects => {
+      const updatePromises = projects.map(project => {
+        return fetch(`/project?_id=${encodeURIComponent(project._id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manager: null })
+        });
+      });
+
+      return Promise.all(updatePromises);
+    })
+    .then(responses => Promise.all(responses.map(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP status ${res.status}`);
+      }
+      return res.json();
+    })))
+    .then(results => {
+      console.log('All projects updated:', results);
+    })
+    .catch(err => console.error('Failed to update projects', err));
 },
 removePersonFromTasksAP(personId, removedProjectId) {
   console.log('Removing person from tasks:', personId);

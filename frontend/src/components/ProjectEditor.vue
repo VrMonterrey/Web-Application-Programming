@@ -177,6 +177,7 @@ export default {
         .then((res) => res.json())
         .then((data) => {
           if (data.error) throw new Error(data.error);
+          this.removeTasks(this.id);
           this.$emit("dataChanged");
         })
         .catch((err) => this.$emit("dataAccessFailed", err.message));
@@ -191,6 +192,30 @@ export default {
       this.center = this.project.coords;
       this.$refs.vmap.map.flyTo(this.center);
     },
+    removeTasks(projectId) {
+  fetch(`/task?projectId=${encodeURIComponent(projectId)}`)
+    .then(response => response.json())
+    .then(tasks => {
+      const updatePromises = tasks.map(task => {
+        return fetch(`/task?_id=${encodeURIComponent(task._id)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+
+      return Promise.all(updatePromises);
+    })
+    .then(responses => Promise.all(responses.map(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP status ${res.status}`);
+      }
+      return res.json();
+    })))
+    .then(results => {
+      console.log('All tasks deleted:', results);
+    })
+    .catch(err => console.error('Failed to delete tasks', err));
+},
   },
   data() {
     return {

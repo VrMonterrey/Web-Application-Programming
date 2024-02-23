@@ -35,7 +35,9 @@ module.exports = {
 
   get: (req, res) => {
     const _id = req.query._id;
-    const personId = req.query.personId;
+    const personId = req.query.personId;  
+    const projectId = req.query.projectId;
+
     if (_id) {
       model
         .findOne({ _id })
@@ -59,6 +61,16 @@ module.exports = {
           
           res.status(500).json({ error: err.message });
         });
+      } else if (projectId) {
+        model.find({ persons: projectId })
+          .then((tasks) => {
+            
+            res.json(tasks);
+          })
+          .catch((err) => {
+            
+            res.status(500).json({ error: err.message });
+          });
       } else {
       let aggregation = [
         { $sort: { name: 1 } },
