@@ -53,33 +53,109 @@ export default {
         .catch(err => this.$emit('dataAccessFailed', err.message))
     },
     modify() {
-      fetch('/person?_id=' + this.id, {
+  fetch('/person?_id=' + this.id)
+    .then(res => res.json())
+    .then(previousPersonData => {
+      return fetch('/person?_id=' + this.id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this.person) })
-        .then(res => res.json())
-        .then(data => {
-          if(data.error) throw new Error(data.error)
-          this.$emit('dataChanged')
-        })
-        .catch(err => this.$emit('dataAccessFailed', err.message))
-    },
+        body: JSON.stringify(this.person)
+      })
+      .then(res => res.json())
+      .then(updatedPersonData => {
+        if(updatedPersonData.error) throw new Error(updatedPersonData.error);
+
+        const previousProjects = previousPersonData.projects || [];
+        const updatedProjects = updatedPersonData.projects || [];
+        const removedProjects = previousProjects.filter(projectId => !updatedProjects.includes(projectId));
+
+        removedProjects.forEach(projectId => {
+          this.removePersonFromTasksAP(this.id, projectId);
+        });
+
+        this.$emit('dataChanged');
+      });
+    })
+    .catch(err => this.$emit('dataAccessFailed', err.message));
+},
     remove() {
       this.confirmation = true
     },
     removeReal() {
-      this.confirmation = false
-      fetch('/person?_id=' + this.id, { method: 'DELETE' })
-      .then(res => res.json())
-      .then(data => {
-        if(data.error) throw new Error(data.error)
-        this.$emit('dataChanged')
-      })
-      .catch(err => this.$emit('dataAccessFailed', err.message))
-    },
+  const personIdToRemove = this.id;
+  this.confirmation = false;
+  fetch('/person?_id=' + personIdToRemove, { method: 'DELETE' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      this.removePersonFromTasks(personIdToRemove);
+      this.$emit('dataChanged');
+    })
+    .catch(err => this.$emit('dataAccessFailed', err.message));
+},
     cancel() {
       this.$emit('cancel')
-    }
+    },
+    removePersonFromTasks(personId) {
+  console.log('Removing person from tasks:', personId);
+  fetch(`/task?personId=${encodeURIComponent(personId)}`)
+    .then(response => response.json())
+    .then(tasks => {
+      const updatePromises = tasks.map(task => {
+        const updatedPersons = task.persons.filter(pId => pId.toString() !== personId);
+        return fetch(`/task?_id=${encodeURIComponent(task._id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persons: updatedPersons })
+        });
+      });
+
+      return Promise.all(updatePromises);
+    })
+    .then(responses => Promise.all(responses.map(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP status ${res.status}`);
+      }
+      return res.json();
+    })))
+    .then(results => {
+      console.log('All tasks updated:', results);
+    })
+    .catch(err => console.error('Failed to update tasks for person', err));
+},
+removePersonFromTasksAP(personId, removedProjectId) {
+  console.log('Removing person from tasks:', personId);
+  fetch(`/task?personId=${encodeURIComponent(personId)}`)
+    .then(response => response.json())
+    .then(tasks => {
+      const updatePromises = tasks.map(task => {
+        const shouldRemovePerson = task.project_id === removedProjectId;
+        if (shouldRemovePerson) {
+          const updatedPersons = task.persons.filter(pId => pId.toString() !== personId);
+          return fetch(`/task?_id=${encodeURIComponent(task._id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ persons: updatedPersons })
+          });
+        }
+        return null;
+      });
+
+      const validPromises = updatePromises.filter(promise => promise !== null);
+
+      return Promise.all(validPromises);
+    })
+    .then(responses => Promise.all(responses.map(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP status ${res.status}`);
+      }
+      return res.json();
+    })))
+    .then(results => {
+      console.log('All tasks updated:', results);
+    })
+    .catch(err => console.error('Failed to update tasks for person', err));
+},
   },
   data() {
     return {

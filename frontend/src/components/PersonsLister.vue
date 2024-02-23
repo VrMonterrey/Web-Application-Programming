@@ -40,27 +40,38 @@
               <th class="text-left">
                 Projects
               </th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(person, index) in persons" :key="index" @click="click(person)">
-              <td>{{ person.firstName }}</td>
-              <td>{{ person.lastName }}</td>
-              <td>{{ new Date(person.birthDate).toLocaleDateString() }}</td>
-              <td>{{ [ 'primary', 'secondary', 'high' ][person.education] }}</td>
-              <td>
-                <v-chip v-for="(project, pindex) in person.projects" :key="pindex" :color="project.color">
-                  {{ project.shortcut }}
-                </v-chip>
-              </td>
-            </tr>
-          </tbody>
+  <tr v-for="(person, index) in persons" :key="index">
+    <td @click="click(person)">{{ person.firstName }}</td>
+    <td @click="click(person)">{{ person.lastName }}</td>
+    <td @click="click(person)">{{ new Date(person.birthDate).toLocaleDateString() }}</td>
+    <td @click="click(person)">{{ ['primary', 'secondary', 'high'][person.education] }}</td>
+    <td @click="click(person)">
+      <v-chip v-for="(project, pindex) in person.projects" :key="pindex" :color="project.color">
+        {{ project.shortcut }}
+      </v-chip>
+    </td>
+    <td>
+      <v-btn small variant="elevated" color="cyan" 
+  @click.stop="openGanttChart(person._id)">
+  <span class="text-white">Gantt</span>
+</v-btn>
+    </td>
+  </tr>
+</tbody>
         </v-table>
       </v-card-text>
     </v-card>
 
     <v-dialog v-model="editor" width="50%">
       <PersonEditor :id="id" @dataChanged="retrieve" @cancel="cancel" @dataAccessFailed="onDataAccessFailed"/>
+    </v-dialog>
+
+    <v-dialog v-model="isGanttChartModalVisible" width="90%">
+      <GanttChart :tasks="tasks" />
     </v-dialog>
 
     <v-snackbar v-model="dataAccessError" color="error" timeout="3000">{{ dataAccessErrorMsg }}</v-snackbar>
@@ -71,10 +82,11 @@
 import common from '../mixins/common'
 
 import PersonEditor from './PersonEditor.vue'
+import GanttChart from './GanttChart.vue'
 
 export default {
   name: 'PersonsLister',
-  components: { PersonEditor },
+  components: { PersonEditor, GanttChart },
   mixins: [ common ],
   props: [ 'user', 'websocket', 'eventSet' ],
   methods: {
@@ -105,7 +117,35 @@ export default {
     onDataAccessFailed(data) {
       this.dataAccessErrorMsg = data
       this.dataAccessError = true
-    }
+    },
+    openGanttChart(personId) {
+    this.tasks = [];
+    this.selectedPersonId = personId;
+    this.fetchPersonTasks(personId)
+    .then((data) => {
+      this.tasks = data;
+      this.isGanttChartModalVisible = true;
+    })
+    .catch((error) => {
+      console.error("Failed to fetch tasks:", error);
+    });
+    this.isGanttChartModalVisible = true;
+  },
+  fetchPersonTasks(personId) {
+  return fetch(`/task?personId=${personId}`)
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 404) {
+          return [];
+        }
+        throw new Error('Failed to load tasks');
+      }
+      return response.json();
+    })
+    .then(data => {
+      return Array.isArray(data) ? data : [];
+    });
+},
   },
   data() {
     return {
@@ -116,7 +156,10 @@ export default {
       search: '',
       education: [ 0, 1, 2 ],
       dataAccessError: false,
-      dataAccessErrorMsg: ''
+      dataAccessErrorMsg: '',
+      isGanttChartModalVisible: false,
+      selectedPersonId: null,
+      tasks: [],
     }
   },
   mounted() {

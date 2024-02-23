@@ -214,8 +214,6 @@ export default {
   },
   async mounted() {
     try {
-      // Pobieranie danych o osobach
-
       const personsResponse = await fetch("/person" + "?search&limit=1000000", {
         method: "GET",
       });
@@ -223,7 +221,6 @@ export default {
 
       this.persons = personsData;
 
-      // Jeśli istnieje ID projektu, pobierz również dane o projekcie
       if (this.id) {
         const projectResponse = await fetch("/project?_id=" + this.id, {
           method: "GET",
@@ -238,13 +235,9 @@ export default {
         if (!projectData.coords) {
           projectData.coords = this.defaultCoords();
         }
-
-        // Ustawienie danych projektu i centrum
         Object.assign(this.project, projectData);
         Object.assign(this.center, this.project.coords);
         this.$refs.vmap.map.panTo(this.center);
-
-        // Ustawienie filteredPersons po pobraniu danych o projektach
 
         this.filteredPersons = this.persons
           .filter(

@@ -119,23 +119,9 @@ export default {
       },
     },
   },
-  /*
   watch: {
     selectedProject: {
       handler(newProject, oldProject) {
-        // Aktualizuj filteredPersons przy zmianie wybranego projektu
-        if (newProject && newProject !== oldProject) {
-          this.updateFilteredPersons(newProject);
-        }
-      },
-      deep: true,
-    },
-  },
-  */
-  watch: {
-    selectedProject: {
-      handler(newProject, oldProject) {
-        // Aktualizuj filteredPersons przy zmianie wybranego projektu
         if (newProject && newProject !== oldProject) {
           this.updateFilteredPersons(newProject);
         }
@@ -144,7 +130,6 @@ export default {
       deep: true,
     },
     selectedProjectName(newValue) {
-      // Call updateFilteredPersons when the selected project name changes
       const project = this.projects.find((p) => p.name === newValue);
       this.updateFilteredPersons(project);
     },
@@ -242,8 +227,6 @@ export default {
   },
   async mounted() {
     try {
-      // Pobieranie danych o projektach
-
       const projectsResponse = await fetch(
         "/project" + "?search&limit=1000000",
         {
@@ -258,30 +241,18 @@ export default {
         method: "GET",
       });
       const personsData = await personsResponse.json();
-
       this.persons = personsData;
-
-      /*
-      console.log(
-        "this.projects.map((obj) => obj.name) ",
-        this.projects.map((obj) => obj.name)
-      );
-        */
       if (this.id) {
         const taskResponse = await fetch("/task?_id=" + this.id, {
           method: "GET",
         });
-        //console.log("idik:", this.id);
         const taskData = await taskResponse.json();
 
         if (taskData.error) {
           throw new Error(taskData.error);
         }
-
-        // Ustawienie danych projektu i centrum
         Object.assign(this.task, taskData);
 
-        // Filtruj persons na podstawie projektu
         const selectedProject = this.projects.find(
           (project) => project._id === this.task.project_id
         );
@@ -300,14 +271,13 @@ export default {
               title: person.firstName + " " + person.lastName,
             }));
 
-          this.task.members = this.task.persons; //.map((person) => person.$oid);
+          this.task.members = this.task.persons;
           this.task.persons = this.task.members;
 
           console.log("this.task.members: ", this.task.members);
           console.log("Filtered Persons:", this.filteredPersons);
         }
       }
-      //console.log("Task Editor mounted:", this.task);
     } catch (err) {
       this.$emit("dataAccessFailed", err.message);
     }
